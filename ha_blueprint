@@ -41,16 +41,6 @@ blueprint:
         entity:
           domain: timer
 
-    # Verbetering #3: Optionele check
-    turn_on_only_if_off:
-      name: Alleen aanzetten indien uitgeschakeld?
-      description: >
-        Indien aangevinkt, wordt de 'aan' actie alleen uitgevoerd als de status van
-        'Uit te schakelen doelwit(ten)' (zie belangrijke noot daar) 'off' is.
-      selector:
-        boolean: {}
-      default: false
-
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
       description: >
@@ -133,7 +123,10 @@ action:
                     after: !input time_start_day
                     before: !input time_start_night
                 sequence: !input turn_on_action_day
-            default: !input turn_on_action_night
+                  - condition: time
+                    after: !input time_start_night
+                    before: !input time_start_day
+                sequence: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           - service: timer.start
@@ -147,14 +140,6 @@ action:
           - condition: trigger
             id: timer_finished
         sequence:
-          # Stap 2.1: Verbetering #5 - Check of het licht nog aan is
-          - condition: state
-            entity_id: !input light_target # Werkt alleen goed als light_target een enkele entity is.
-            state: 'on'
-            # Als light_target een groep/area is, kan deze conditie onbetrouwbaar zijn
-            # of falen. Overweeg te verwijderen indien je groepen/areas target.
-            # Het is meestal niet erg om 'turn_off' te sturen naar iets dat al uit is.
-
           # Stap 2.2: Schakel het doelwit uit
           - service: light.turn_off
             target: !input light_target # Werkt correct met enkele entity, groep of area
