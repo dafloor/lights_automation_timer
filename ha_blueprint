@@ -6,7 +6,9 @@ blueprint:
     Opties voor dag/nacht, alleen aanzetten als uit, en alleen uitzetten als aan.
     Vereist een vooraf aangemaakte timer-helper.
   domain: automation
-  # Verbetering #6: Voeg hier een URL toe naar je Gist, repository of forum post
+
+# Verbetering #6: Voeg hier een URL toe naar je Gist, repository of forum post
+  source_url: https://raw.githubusercontent.com/dafloor/lights_automation_timer/refs/heads/main/ha_blueprint
 
   input:
     motion_sensor:
