@@ -159,4 +159,3 @@ action:
           - service: light.turn_off
             target: !input light_target # Werkt correct met enkele entity, groep of area
 
-    default: []
