@@ -1,213 +1,131 @@
-# Blueprint for motion-triggered lighting with timer and optional day/night modes
 blueprint:
-  name: Bewegingslicht met Timer
+  name: Bewegingsgestuurd Licht met Expliciete Timer (Dag/Nacht)
   description: >
-    Schakelt verlichting in bij beweging en schakelt deze na een timer uit.
-    Met optionele dag/nacht scènes, extra condities, ondersteuning voor meerdere bewegingssensoren,
-    en keuze voor acties bij timer-afloop.
-
+    Schakelt een licht/scene in bij beweging en start/herstart een opgegeven timer.
+    Schakelt het licht uit wanneer die timer afloopt.
+    Gebruikt verschillende acties voor dag en nacht.
+    Vereist een vooraf aangemaakte timer-helper.
   domain: automation
-
-# Inputs for sensors, lights, timer, and optional conditions
   input:
     motion_sensor:
-      name: Bewegingssensor(en) / Motion Sensor(s)
-      description: >
-        De bewegingssensor(en) die de automatisering triggeren. /
-        The motion sensor(s) that trigger the automation.
+      name: Bewegingssensor
+      description: De binary_sensor die beweging detecteert.
       selector:
-        target:
-          entity:
-            - domain: binary_sensor
-              device_class: motion
-
+        entity:
+          domain: binary_sensor
+          device_class: motion
     light_target:
-      name: Licht(en) of Scène(s) / Light(s) or Scene(s)
-      description: >
-        De lamp(en) of scène(s) die moeten worden ingeschakeld. /
-        The light(s) or scene(s) to activate.
+      name: Licht entiteit
+      description: De primaire lamp die geschakeld moet worden (wordt gebruikt voor de 'uit' actie).
       selector:
-        target:
-          entity:
-            - domain: light
-            - domain: scene
-
+        entity: # Selecteer de specifieke lamp die uit moet. Scenes regelen het aanzetten.
+          domain: light
     timer_entity:
-      name: Timer Entiteit / Timer Entity
-      description: >
-        De timer entiteit die de brandtijd bepaalt. /
-        The timer entity that determines the light-on duration.
+      name: Timer Helper
+      description: De timer.* helper entiteit die gebruikt wordt. Maak deze vooraf aan via Instellingen -> Apparaten & Services -> Helpers.
       selector:
         entity:
           domain: timer
-
-    dag_start_tijd:
-      name: Starttijd Dagmodus (optioneel) / Day Mode Start Time (optional)
-      description: >
-        Tijdstip waarop de dagmodus begint (bv. 07:00). Laat leeg om dagmodus over te slaan. /
-        Time when the day mode starts (e.g., 07:00). Leave empty to skip day mode.
+    turn_on_action_day:
+      name: Actie bij inschakelen (Dag)
+      description: Actie die uitgevoerd moet worden bij beweging overdag (bv. activeer scene.overloop_helder). Scenes bevatten meestal de juiste lamp(en).
       selector:
-        time:
-          enable_time: true
-
-    nacht_start_tijd:
-      name: Starttijd Nachtmodus (optioneel) / Night Mode Start Time (optional)
-      description: >
-        Tijdstip waarop de nachtmodus begint (bv. 23:00). Laat leeg om nachtmodus over te slaan. /
-        Time when the night mode starts (e.g., 23:00). Leave empty to skip night mode.
+        action: {}
+      default: []
+    turn_on_action_night:
+      name: Actie bij inschakelen (Nacht)
+      description: Actie die uitgevoerd moet worden bij beweging 's nachts (bv. activeer scene.overloop_nachtlampje). Scenes bevatten meestal de juiste lamp(en).
       selector:
-        time:
-          enable_time: true
-
-    dag_scene:
-      name: Scène voor Dagmodus (optioneel) / Day Mode Scene (optional)
-      description: >
-        De scène die geactiveerd moet worden tijdens de dagmodus. /
-        The scene to activate during day mode.
+        action: {}
+      default: []
+    time_start_day:
+      name: Starttijd Dag Helper
+      description: De input_datetime helper die het begin van de 'dag'-periode aangeeft.
       selector:
         entity:
-          domain: scene
-
-    nacht_scene:
-      name: Scène voor Nachtmodus (optioneel) / Night Mode Scene (optional)
-      description: >
-        De scène die geactiveerd moet worden tijdens de nachtmodus. /
-        The scene to activate during night mode.
+          domain: input_datetime
+    time_start_night:
+      name: Starttijd Nacht Helper
+      description: De input_datetime helper die het begin van de 'nacht'-periode aangeeft (einde dag-periode).
       selector:
         entity:
-          domain: scene
-
-    vertraging:
-      name: Timer Duur (minuten) / Timer Duration (minutes)
-      description: >
-        De duur in minuten dat het licht aan moet blijven na de laatste beweging. /
-        The duration in minutes that the light should stay on after the last motion.
-      default: 5
+          domain: input_datetime
+    timer_duration:
+      name: Timer Duur
+      description: De duur voor de timer (bv. "00:05:00" voor 5 minuten, of 300 voor 300 seconden).
       selector:
-        number:
-          min: 1
-          max: 60
-          unit_of_measurement: minuten
+        # Gebruik 'text' voor flexibiliteit ("HH:MM:SS" of seconden als tekst)
+        text: {}
+      # Alternatief: 'number' selector als je alleen seconden wilt toestaan
+      # selector:
+      #   number:
+      #     min: 1
+      #     max: 7200 # Max 2 uur
+      #     unit_of_measurement: seconds
+      default: "00:05:00" # Standaard 5 minuten
 
-    optional_conditions:
-      name: Optionele Conditie(s) / Optional Condition(s)
-      description: >
-        Extra condities waaraan voldaan moet worden voordat de automatisering wordt uitgevoerd. /
-        Additional conditions that must be met before the automation is executed.
-      selector:
-        condition: {}
+# Modus: Queued voorkomt problemen als triggers snel achter elkaar komen,
+# maar bootst niet exact de 'restart' van je originele 'aan' na als acties lang duren.
+# 'single' zou de 'uit' actie kunnen missen als er net beweging is.
+# 'restart' zou de 'uit' actie annuleren als er net beweging is.
+# 'queued' is vaak een veilige keuze voor dit soort gecombineerde triggers.
+mode: queued
+max_exceeded: warning
 
-    timer_action:
-      name: Actie bij Timer Afloop / Action on Timer Expiry
-      description: >
-        De actie die moet worden uitgevoerd wanneer de timer afloopt. /
-        The action to perform when the timer expires.
-      selector:
-        action:
-          type: SELECT
-          options:
-            - turn_off: Schakel de lichten uit / Turn off the lights.
-            - dim: Dim de lichten naar een bepaald percentage / Dim the lights to a specific percentage.
-            - scene: Activeer een specifieke scène / Activate a specific scene.
-          default: turn_off
+trigger:
+  # Trigger 1: Beweging gedetecteerd
+  - platform: state
+    entity_id: !input motion_sensor
+    to: "on"
+    id: motion_detected # ID om trigger te herkennen in acties
 
-    timer_off_scene:
-      name: Scène bij Timer Afloop (optioneel) / Scene on Timer Expiry (optional)
-      description: >
-        De scène die geactiveerd moet worden wanneer de timer afloopt (indien 'scene' is geselecteerd). /
-        The scene to activate when the timer expires (if 'scene' is selected).
-      selector:
-        entity:
-          domain: scene
-      default:
+  # Trigger 2: Timer is afgelopen
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input timer_entity
+    id: timer_finished # ID om trigger te herkennen in acties
 
-  automation:
-    - alias: Bewegingslicht met Timer
-      description: >
-        Schakelt verlichting in bij beweging en schakelt deze na een timer uit.
-        Met optionele dag/nacht scènes, extra condities, ondersteuning voor meerdere bewegingssensoren,
-        en keuze voor acties bij timer-afloop.
-      trigger:
-        - platform: state
-          entity_id: !input motion_sensor
-          to: "on"
-      condition: !input optional_conditions
-      action:
-        - if:
-            - condition: and
-              conditions:
-                - condition: time
-                  after: !input dag_start_tijd
-                  before: !input nacht_start_tijd
-                - condition: template
-                  value_template: "{{ dag_start_tijd != None and nacht_start_tijd != None }}"
-          then:
-            - service: scene.turn_on
-              target: !input dag_scene
-        - elif:
-            - condition: and
-              conditions:
-                - condition: time
-                  after: !input nacht_start_tijd
-                  before: !input dag_start_tijd
-                - condition: template
-                  value_template: "{{ dag_start_tijd != None and nacht_start_tijd != None and nacht_start_tijd > dag_start_tijd }}"
-          then:
-            - service: scene.turn_on
-              target: !input nacht_scene
-        - elif:
-            - condition: time
-              after: !input dag_start_tijd
-              condition: template
-              value_template: "{{ dag_start_tijd != None and nacht_start_tijd == None }}"
-          then:
-            - service: scene.turn_on
-              target: !input dag_scene
-        - elif:
-            - condition: time
-              before: !input nacht_start_tijd
-              condition: template
-              value_template: "{{ dag_start_tijd == None and nacht_start_tijd != None }}"
-          then:
-            - service: scene.turn_on
-              target: !input nacht_scene
-        - else:
-            - service: homeassistant.turn_on
-              target: !input light_target
-        - service: timer.start
-          target: !input timer_entity
-          data:
-            duration: "00:{{ '%02d' % vertraging | int }}:00"
-      mode: single
+condition: [] # Geen globale condities
 
-    - alias: Bewegingslicht met Timer - Lampen Uit / Lights Off
-      description: >
-        Voert de geselecteerde actie uit wanneer de timer afloopt. /
-        Performs the selected action when the timer expires.
-      trigger:
-        - platform: event
-          event_type: timer.finished
-          event_data:
-            entity_id: !input timer_entity
-      action:
-        - if:
-            - condition: template
-              value_template: "{{ timer_action == 'turn_off' }}"
-          then:
-            - service: homeassistant.turn_off
-              target: !input light_target
-        - elif:
-            - condition: template
-              value_template: "{{ timer_action == 'dim' }}"
-          then:
-            - service: light.turn_on
-              target: !input light_target
-              data:
-                brightness_pct: 25
-        - elif:
-            - condition: template
-              value_template: "{{ timer_action == 'scene' }}"
-          then:
-            - service: scene.turn_on
-              target: !input timer_off_scene
-      mode: single
+action:
+  - choose:
+      # --- Acties voor Trigger 1: Beweging gedetecteerd ---
+      - conditions:
+          - condition: trigger
+            id: motion_detected
+        sequence:
+          # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
+          # We voeren de actie altijd uit bij beweging; de scene/actie zelf
+          # moet idealiter zorgen dat er niets geks gebeurt als het licht al aan is.
+          - choose:
+              - conditions:
+                  # Conditie voor 'Dag'
+                  - condition: time
+                    after: !input time_start_day
+                    before: !input time_start_night
+                sequence: !input turn_on_action_day
+            # Standaard actie ('Nacht')
+            default: !input turn_on_action_night
+
+          # Stap 1.2: Start (of herstart) de timer
+          # timer.start herstart de timer automatisch als deze al liep.
+          - service: timer.start
+            target:
+              entity_id: !input timer_entity
+            data:
+              duration: !input timer_duration
+
+      # --- Acties voor Trigger 2: Timer is afgelopen ---
+      - conditions:
+          - condition: trigger
+            id: timer_finished
+        sequence:
+          # Stap 2.1: Schakel het licht uit
+          - service: light.turn_off
+            target:
+              # Gebruik de specifieke licht entiteit die is opgegeven
+              entity_id: !input light_target
+
+    # Optioneel: Standaard actie als geen trigger ID matcht (zou niet moeten gebeuren)
+    # default: []
