@@ -169,8 +169,13 @@ action:
                         {% endif %}
                       {% endfor %}
                       {{ light_level_ok }}
-                - !input turn_on_action_day
-            default: !input turn_on_action_night
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input turn_on_action_day
+              default:
+                - service: scene.turn_on
+                  target:
+                    entity_id: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           - service: timer.start
