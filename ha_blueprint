@@ -18,8 +18,14 @@ blueprint:
       name: Licht entiteit
       description: De primaire lamp die geschakeld moet worden (wordt gebruikt voor de 'uit' actie).
       selector:
-        entity:
+        target:
           domain: light
+    turn_on_only_if_off:
+      name: Alleen aanzetten indien uitgeschakeld?
+      description: Indien aangevinkt, wordt de 'aan' actie alleen uitgevoerd als de 'Licht entiteit' uit is.
+      selector:
+        boolean: {}
+      default: false
     timer_entity:
       name: Timer Helper
       description: >
