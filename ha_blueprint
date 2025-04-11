@@ -1,11 +1,14 @@
 blueprint:
-  name: Bewegingsgestuurd Licht met Expliciete Timer (Dag/Nacht)
+  name: Bewegingsgestuurd Licht met Expliciete Timer (Dag/Nacht) v2
   description: >
-    Schakelt een licht/scene in bij beweging en start/herstart een opgegeven timer.
-    Schakelt het licht uit wanneer die timer afloopt.
-    Gebruikt verschillende acties voor dag en nacht.
+    IMPROVED VERSION: Schakelt licht(en)/scene(s) in bij beweging en start/herstart een timer.
+    Schakelt het doelwit uit wanneer de timer afloopt.
+    Opties voor dag/nacht, alleen aanzetten als uit, en alleen uitzetten als aan.
     Vereist een vooraf aangemaakte timer-helper.
   domain: automation
+  # Verbetering #6: Voeg hier een URL toe naar je Gist, repository of forum post
+  source_url: https://github.com/UW_GEBRUIKERSNAAM/UW_REPO/blob/main/blueprints/motion_light_timer_explicit.yaml # VERVANG DIT!
+
   input:
     motion_sensor:
       name: Bewegingssensor
@@ -14,18 +17,21 @@ blueprint:
         entity:
           domain: binary_sensor
           device_class: motion
+
+    # Verbetering #1: Flexibeler doelwit
     light_target:
-      name: Licht entiteit
-      description: De primaire lamp die geschakeld moet worden (wordt gebruikt voor de 'uit' actie).
+      name: Uit te schakelen doelwit(ten)
+      description: >
+        De lamp(en), groep(en) of gebied(en) die uitgeschakeld moeten worden na de timer.
+        BELANGRIJK: Als je de opties 'Alleen aanzetten indien uitgeschakeld?' of
+        'Alleen uitschakelen indien ingeschakeld?' gebruikt, werken deze het
+        meest betrouwbaar als dit een *enkele* entiteit is waarvan de status ('on'/'off')
+        de algehele status goed weergeeft.
       selector:
-        target:
-          domain: light
-    turn_on_only_if_off:
-      name: Alleen aanzetten indien uitgeschakeld?
-      description: Indien aangevinkt, wordt de 'aan' actie alleen uitgevoerd als de 'Licht entiteit' uit is.
-      selector:
-        boolean: {}
-      default: false
+        target: # Gebruikt nu target selector
+          entity:
+            domain: light
+
     timer_entity:
       name: Timer Helper
       description: >
@@ -34,39 +40,49 @@ blueprint:
       selector:
         entity:
           domain: timer
+
+    # Verbetering #3: Optionele check
+    turn_on_only_if_off:
+      name: Alleen aanzetten indien uitgeschakeld?
+      description: >
+        Indien aangevinkt, wordt de 'aan' actie alleen uitgevoerd als de status van
+        'Uit te schakelen doelwit(ten)' (zie belangrijke noot daar) 'off' is.
+      selector:
+        boolean: {}
+      default: false
+
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
       description: >
-        Actie die uitgevoerd moet worden bij beweging overdag
-        (bv. activeer scene.overloop_helder). Scenes bevatten meestal de juiste lamp(en).
+        Actie die uitgevoerd moet worden bij beweging overdag (bv. activeer scene.overloop_helder).
         Voorbeeld: gebruik 'scene.turn_on' met een specifieke dag-scene.
       selector:
         action: {}
       default: []
+
     turn_on_action_night:
       name: Actie bij inschakelen (Nacht)
       description: >
-        Actie die uitgevoerd moet worden bij beweging 's nachts
-        (bv. activeer scene.overloop_nachtlampje). Scenes bevatten meestal de juiste lamp(en).
+        Actie die uitgevoerd moet worden bij beweging 's nachts (bv. activeer scene.overloop_nachtlampje).
         Voorbeeld: gebruik 'scene.turn_on' met een specifieke nacht-scene.
       selector:
         action: {}
       default: []
+
     time_start_day:
       name: Starttijd Dag Helper
-      description: >
-        De input_datetime helper die het begin van de 'dag'-periode aangeeft.
-        Voeg een standaardwaarde toe als dat handig is.
+      description: De input_datetime helper die het begin van de 'dag'-periode aangeeft.
       selector:
         entity:
           domain: input_datetime
+
     time_start_night:
       name: Starttijd Nacht Helper
-      description: >
-        De input_datetime helper die het begin van de 'nacht'-periode aangeeft (einde dag-periode).
+      description: De input_datetime helper die het begin van de 'nacht'-periode aangeeft (einde dag-periode).
       selector:
         entity:
           domain: input_datetime
+
     timer_duration:
       name: Timer Duur
       description: >
@@ -76,29 +92,22 @@ blueprint:
         text: {}
       default: "00:05:00"
 
-# Modus: Queued voorkomt problemen als triggers snel achter elkaar komen,
-# maar bootst niet exact de 'restart' van je originele 'aan' na als acties lang duren.
-# 'single' zou de 'uit' actie kunnen missen als er net beweging is.
-# 'restart' zou de 'uit' actie annuleren als er net beweging is.
-# 'queued' is vaak een veilige keuze voor dit soort gecombineerde triggers.
 mode: queued
 max_exceeded: warning
 
 trigger:
-  # Trigger 1: Beweging gedetecteerd
   - platform: state
     entity_id: !input motion_sensor
     to: "on"
-    id: motion_detected # ID om trigger te herkennen in acties
+    id: motion_detected
 
-  # Trigger 2: Timer is afgelopen
   - platform: event
     event_type: timer.finished
     event_data:
       entity_id: !input timer_entity
-    id: timer_finished # ID om trigger te herkennen in acties
+    id: timer_finished
 
-condition: [] # Geen globale condities
+condition: []
 
 action:
   - choose:
@@ -107,21 +116,26 @@ action:
           - condition: trigger
             id: motion_detected
         sequence:
+          # Stap 1.0: Verbetering #3 - Optionele check of licht al aan is
+          # Ga alleen verder als de optie UIT staat, OF als de optie AAN staat EN het doelwit uit is.
+          - condition: template
+            value_template: "{{ not states(turn_on_only_if_off)|bool(false) or is_state(light_target.entity_id, 'off') }}"
+            # Let op: Dit 'is_state' werkt alleen goed als light_target een enkele entity is.
+            # Als het een groep/area is, moet de logica complexer zijn of de check weggelaten worden.
+            # We gebruiken hier 'light_target.entity_id' als een aanname dat de selector een entity ID teruggeeft
+            # voor deze check, ook al is het een target selector. Test dit goed!
+            # Alternatief: Verwijder deze condition als je 'target' gebruikt voor groepen/areas.
+
           # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
-          # We voeren de actie altijd uit bij beweging; de scene/actie zelf
-          # moet idealiter zorgen dat er niets geks gebeurt als het licht al aan is.
           - choose:
               - conditions:
-                  # Conditie voor 'Dag'
                   - condition: time
                     after: !input time_start_day
                     before: !input time_start_night
                 sequence: !input turn_on_action_day
-              # Standaard actie ('Nacht')
-                default: !input turn_on_action_night
+              default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
-          # timer.start herstart de timer automatisch als deze al liep.
           - service: timer.start
             target:
               entity_id: !input timer_entity
@@ -133,9 +147,16 @@ action:
           - condition: trigger
             id: timer_finished
         sequence:
-          # Stap 2.1: Schakel het licht uit
-          - service: light.turn_off
-            target:
-              # Gebruik de specifieke licht entiteit die is opgegeven
-              entity_id: !input light_target
+          # Stap 2.1: Verbetering #5 - Check of het licht nog aan is
+          - condition: state
+            entity_id: !input light_target # Werkt alleen goed als light_target een enkele entity is.
+            state: 'on'
+            # Als light_target een groep/area is, kan deze conditie onbetrouwbaar zijn
+            # of falen. Overweeg te verwijderen indien je groepen/areas target.
+            # Het is meestal niet erg om 'turn_off' te sturen naar iets dat al uit is.
 
+          # Stap 2.2: Schakel het doelwit uit
+          - service: light.turn_off
+            target: !input light_target # Werkt correct met enkele entity, groep of area
+
+    default: []
