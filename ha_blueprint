@@ -123,10 +123,7 @@ action:
                     after: !input time_start_day
                     before: !input time_start_night
                 sequence: !input turn_on_action_day
-                  - condition: time
-                    after: !input time_start_night
-                    before: !input time_start_day
-                sequence: !input turn_on_action_night
+            default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           - service: timer.start
