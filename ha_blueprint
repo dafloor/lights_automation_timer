@@ -108,18 +108,18 @@ action:
   - variables:
       var_light_target: !input light_target 
       var_timer_entity: !input timer_entity
-    # Bereken het aantal lichten dat aan is binnen het doelwit
+    # Bereken het aantal lichten dat aan is binnen het doelwit op basis van 
+    # wat er in light_target (area, device of entity) is aangegeven.
       lights_on_count: >
         {% set target_entities = [] %}
         {% if var_light_target.entity_id is defined %}
-          {% set target_entities = var_light_target.entity_id | list %}
+          {% set target_entities = var_light_target.entity_id %}
         {% elif var_light_target.device_id is defined %}
           {% set target_entities = device_entities(var_light_target.device_id) %}
         {% elif var_light_target.area_id is defined %}
           {% set target_entities = area_entities(var_light_target.area_id) %}
         {% endif %}
-        {{ target_entities | expand | selectattr('state', 'eq', 'on') | list | count }}
-#        {{ expand(light_target) | selectattr('state', 'eq', 'on') | list | count }}
+        {{ expand (target_entities) | selectattr('state', 'eq', 'on') | list | count }}
     # Controleer of de timer idle is
       timer_is_idle: >
         {{ is_state(var_timer_entity, 'idle') }}
@@ -135,33 +135,11 @@ action:
             id: motion_detected
         sequence:
           # Stap 1.0: AANGEPASTE CONDITIE - Check licht & timer status
-          # OPTIE A: Schrijf naar Home Assistant Log (zichtbaar in Instellingen -> Systeem -> Logboeken)
-          - service: system_log.write
-            data:
-              level: info # 'info' is meestal zichtbaar, 'debug' mogelijk niet zonder logger configuratie
-              message: >
-                [Motion Light Check] Light Target: {{ var_light_target }},
-                LightsOnCount: {{ lights_on_count }}, Timer: {{ var_timer_entity }},
-                TimerIdle: {{ timer_is_idle }}, ShouldProceed: {{ should_proceed }}
-          # # OPTIE B: Stuur een Persistente Notificatie (zichtbaar in zijbalk) - Handig voor snel testen
-          - service: persistent_notification.create
-            data:
-              # Gebruik een unieke ID om te voorkomen dat notificaties elkaar overschrijven
-              notification_id: "motion_light_debug_{{ range(1000) | random }}"
-              title: "Motion Light Check - {{ now().strftime('%H:%M:%S') }}"
-              message: >
-                LightsOn: {{ lights_on_count }}, TimerIdle: {{ timer_is_idle }}, Proceed: {{ should_proceed }}
-          # Stap 1.2: Gebruik de berekende variabele in de conditie
+          #           Gebruik de berekende variabele in de conditie
           - condition: template
             # Gebruik hier de variabele die we hierboven hebben berekend
             value_template: "{{ should_proceed }}"
-
-          - service: system_log.write
-            data:
-              level: warning # Gebruik warning om zeker te zijn dat het zichtbaar is
-              message: >
-                DEBUG - Light Target: {{ light_target }}, Timer Entity: {{ timer_entity }} Light Target2: {{ var_light_target }}, Timer Entity2: {{ var_timer_entity }}  
-
+            
           # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
               - conditions:
