@@ -160,14 +160,15 @@ action:
                   - condition: template
                     value_template: >
                       {% set threshold = float(light_level_threshold) %}
+                      {% set light_level_ok = false %}
                       {% for sensor in trigger.entity_id %}
                         {% if states[sensor].attributes.illuminance is defined and states[sensor].attributes.illuminance | float < threshold %}
-                          {% return true %}
+                          {% set light_level_ok = true %}
                         {% elif states[sensor].attributes.light_level is defined and states[sensor].attributes.light_level | float < threshold %}
-                          {% return true %}
+                          {% set light_level_ok = true %}
                         {% endif %}
                       {% endfor %}
-                      {{ false }}
+                      {{ light_level_ok }}
                 - sequence: !input turn_on_action_day
             default: !input turn_on_action_night
 
