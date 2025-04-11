@@ -111,7 +111,22 @@ action:
           - condition: trigger
             id: motion_detected
         sequence:
-          # Stap 1.0: Bepaal dag/nacht en voer de 'aan' actie uit
+          # Stap 1.0: AANGEPASTE CONDITIE - Check licht & timer status
+          # De automatisering (sequence) gaat verder TENZIJ aan BEIDE volgende voorwaarden is voldaan:
+          #  1. Minstens één lamp in 'light_target' is 'on'.
+          #  2. De timer ('timer_entity') heeft de status 'idle'.
+          # Dit betekent dat we doorgaan als: (lampen zijn uit) OF (timer is NIET idle).
+          - condition: template
+            value_template: >
+              {% set lights_on_count = expand(light_target) | selectattr('state', 'eq', 'on') | list | count %}
+              {% set timer_is_idle = is_state(timer_entity, 'idle') %}
+              {# Ga door als NIET (lichten aan ZIJN EN timer idle IS) #}
+              {# Logisch equivalent aan: (lichten aan ZIJN NIET) OF (timer idle IS NIET) #}
+              {{ not (lights_on_count > 0 and timer_is_idle) }}
+              {# Alternatieve, misschien duidelijkere logica die hetzelfde doet: #}
+              {# {{ lights_on_count == 0 or not timer_is_idle }} #}
+
+          # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
               - conditions:
                   - condition: time
@@ -120,7 +135,7 @@ action:
                 sequence: !input turn_on_action_day
             default: !input turn_on_action_night
 
-          # Stap 1.1: Start (of herstart) de timer
+          # Stap 1.2: Start (of herstart) de timer
           - service: timer.start
             target:
               entity_id: !input timer_entity
@@ -132,7 +147,7 @@ action:
           - condition: trigger
             id: timer_finished
         sequence:
-          # Stap 2.2: Schakel het doelwit uit
+          # Stap 2.1: Schakel het doelwit uit
           - service: light.turn_off
             target: !input light_target # Werkt correct met enkele entity, groep of area
 
