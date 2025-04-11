@@ -50,7 +50,7 @@ This Home Assistant blueprint creates an advanced automation for motion-activate
     * Klik op `Opslaan`. / Click `Save`.
 
 ## Voorbeelden / Examples
-
+```yaml
 # Voorbeeld configuratie via de UI / Example configuration via the UI
 Bewegingssensor(en) / Motion Sensor(s): binary_sensor.hallway_motion
 Licht(en) of Scène(s) / Light(s) or Scene(s): light.hallway_ceiling
@@ -75,7 +75,8 @@ Optionele Conditie(s) / Optional Condition(s):
     type: is_hvac_mode
     hvac_mode: "heat"
 Actie bij Timer Afloop / Action on Timer Expiry: dim
+```
 
 ## Bekende Problemen / Known Issues
-Momenteel geen bekende problemen. .
+Momenteel geen bekende problemen.
 
