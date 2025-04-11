@@ -78,5 +78,5 @@ Actie bij Timer Afloop / Action on Timer Expiry: dim
 ```
 
 ## Bekende Problemen / Known Issues
-Momenteel geen bekende problemen.
+NOT WORKING, work in progress !
 
