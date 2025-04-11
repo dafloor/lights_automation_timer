@@ -133,5 +133,3 @@ action:
               # Gebruik de specifieke licht entiteit die is opgegeven
               entity_id: !input light_target
 
-      # Optioneel: Standaard actie als geen trigger ID matcht (zou niet moeten gebeuren)
-      default: []
