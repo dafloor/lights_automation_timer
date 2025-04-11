@@ -169,7 +169,7 @@ action:
                         {% endif %}
                       {% endfor %}
                       {{ light_level_ok }}
-                - sequence: !input turn_on_action_day
+                - !input turn_on_action_day
             default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
