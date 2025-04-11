@@ -105,17 +105,7 @@ action:
           - condition: trigger
             id: motion_detected
         sequence:
-          # Stap 1.0: Verbetering #3 - Optionele check of licht al aan is
-          # Ga alleen verder als de optie UIT staat, OF als de optie AAN staat EN het doelwit uit is.
-          - condition: template
-            value_template: "{{ not states(turn_on_only_if_off)|bool(false) or is_state(light_target.entity_id, 'off') }}"
-            # Let op: Dit 'is_state' werkt alleen goed als light_target een enkele entity is.
-            # Als het een groep/area is, moet de logica complexer zijn of de check weggelaten worden.
-            # We gebruiken hier 'light_target.entity_id' als een aanname dat de selector een entity ID teruggeeft
-            # voor deze check, ook al is het een target selector. Test dit goed!
-            # Alternatief: Verwijder deze condition als je 'target' gebruikt voor groepen/areas.
-
-          # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
+          # Stap 1.0: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
               - conditions:
                   - condition: time
@@ -124,7 +114,7 @@ action:
                 sequence: !input turn_on_action_day
             default: !input turn_on_action_night
 
-          # Stap 1.2: Start (of herstart) de timer
+          # Stap 1.1: Start (of herstart) de timer
           - service: timer.start
             target:
               entity_id: !input timer_entity
