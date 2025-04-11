@@ -18,51 +18,57 @@ blueprint:
       name: Licht entiteit
       description: De primaire lamp die geschakeld moet worden (wordt gebruikt voor de 'uit' actie).
       selector:
-        entity: # Selecteer de specifieke lamp die uit moet. Scenes regelen het aanzetten.
+        entity:
           domain: light
     timer_entity:
       name: Timer Helper
-      description: De timer.* helper entiteit die gebruikt wordt. Maak deze vooraf aan via Instellingen -> Apparaten & Services -> Helpers.
+      description: >
+        De timer.* helper entiteit die gebruikt wordt. Maak deze vooraf aan via
+        Instellingen -> Apparaten & Services -> Helpers.
       selector:
         entity:
           domain: timer
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
-      description: Actie die uitgevoerd moet worden bij beweging overdag (bv. activeer scene.overloop_helder). Scenes bevatten meestal de juiste lamp(en).
+      description: >
+        Actie die uitgevoerd moet worden bij beweging overdag
+        (bv. activeer scene.overloop_helder). Scenes bevatten meestal de juiste lamp(en).
+        Voorbeeld: gebruik 'scene.turn_on' met een specifieke dag-scene.
       selector:
         action: {}
       default: []
     turn_on_action_night:
       name: Actie bij inschakelen (Nacht)
-      description: Actie die uitgevoerd moet worden bij beweging 's nachts (bv. activeer scene.overloop_nachtlampje). Scenes bevatten meestal de juiste lamp(en).
+      description: >
+        Actie die uitgevoerd moet worden bij beweging 's nachts
+        (bv. activeer scene.overloop_nachtlampje). Scenes bevatten meestal de juiste lamp(en).
+        Voorbeeld: gebruik 'scene.turn_on' met een specifieke nacht-scene.
       selector:
         action: {}
       default: []
     time_start_day:
       name: Starttijd Dag Helper
-      description: De input_datetime helper die het begin van de 'dag'-periode aangeeft.
+      description: >
+        De input_datetime helper die het begin van de 'dag'-periode aangeeft.
+        Voeg een standaardwaarde toe als dat handig is.
       selector:
         entity:
           domain: input_datetime
     time_start_night:
       name: Starttijd Nacht Helper
-      description: De input_datetime helper die het begin van de 'nacht'-periode aangeeft (einde dag-periode).
+      description: >
+        De input_datetime helper die het begin van de 'nacht'-periode aangeeft (einde dag-periode).
       selector:
         entity:
           domain: input_datetime
     timer_duration:
       name: Timer Duur
-      description: De duur voor de timer (bv. "00:05:00" voor 5 minuten, of 300 voor 300 seconden).
+      description: >
+        De duur voor de timer. Accepteert waarden in "HH:MM:SS" formaat
+        of seconden als tekst (bijv. "300" voor 300 seconden).
       selector:
-        # Gebruik 'text' voor flexibiliteit ("HH:MM:SS" of seconden als tekst)
         text: {}
-      # Alternatief: 'number' selector als je alleen seconden wilt toestaan
-      # selector:
-      #   number:
-      #     min: 1
-      #     max: 7200 # Max 2 uur
-      #     unit_of_measurement: seconds
-      default: "00:05:00" # Standaard 5 minuten
+      default: "00:05:00"
 
 # Modus: Queued voorkomt problemen als triggers snel achter elkaar komen,
 # maar bootst niet exact de 'restart' van je originele 'aan' na als acties lang duren.
@@ -105,8 +111,8 @@ action:
                     after: !input time_start_day
                     before: !input time_start_night
                 sequence: !input turn_on_action_day
-            # Standaard actie ('Nacht')
-            default: !input turn_on_action_night
+              # Standaard actie ('Nacht')
+              default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           # timer.start herstart de timer automatisch als deze al liep.
@@ -127,5 +133,5 @@ action:
               # Gebruik de specifieke licht entiteit die is opgegeven
               entity_id: !input light_target
 
-    # Optioneel: Standaard actie als geen trigger ID matcht (zou niet moeten gebeuren)
-    # default: []
+      # Optioneel: Standaard actie als geen trigger ID matcht (zou niet moeten gebeuren)
+      default: []
