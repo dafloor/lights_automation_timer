@@ -18,29 +18,6 @@ blueprint:
           domain: binary_sensor
           device_class: motion
 
-    # Verbetering #1: Flexibeler doelwit
-    light_target:
-      name: Uit te schakelen doelwit(ten)
-      description: >
-        De lamp(en), groep(en) of gebied(en) die uitgeschakeld moeten worden na de timer.
-        BELANGRIJK: Als je de opties 'Alleen aanzetten indien uitgeschakeld?' of
-        'Alleen uitschakelen indien ingeschakeld?' gebruikt, werken deze het
-        meest betrouwbaar als dit een *enkele* entiteit is waarvan de status ('on'/'off')
-        de algehele status goed weergeeft.
-      selector:
-        target: # Gebruikt nu target selector
-          entity:
-            domain: light
-
-    timer_entity:
-      name: Timer Helper
-      description: >
-        De timer.* helper entiteit die gebruikt wordt. Maak deze vooraf aan via
-        Instellingen -> Apparaten & Services -> Helpers.
-      selector:
-        entity:
-          domain: timer
-
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
       description: >
@@ -59,6 +36,20 @@ blueprint:
         action: {}
       default: []
 
+    # Verbetering #1: Flexibeler doelwit
+    light_target:
+      name: Uit te schakelen doelwit(ten)
+      description: >
+        De lamp(en), groep(en) of gebied(en) die uitgeschakeld moeten worden na de timer.
+        BELANGRIJK: Als je de opties 'Alleen aanzetten indien uitgeschakeld?' of
+        'Alleen uitschakelen indien ingeschakeld?' gebruikt, werken deze het
+        meest betrouwbaar als dit een *enkele* entiteit is waarvan de status ('on'/'off')
+        de algehele status goed weergeeft.
+      selector:
+        target: # Gebruikt nu target selector
+          entity:
+            domain: light
+
     time_start_day:
       name: Starttijd Dag Helper
       description: De input_datetime helper die het begin van de 'dag'-periode aangeeft.
@@ -72,6 +63,15 @@ blueprint:
       selector:
         entity:
           domain: input_datetime
+
+    timer_entity:
+      name: Timer Helper
+      description: >
+        De timer.* helper entiteit die gebruikt wordt. Maak deze vooraf aan via
+        Instellingen -> Apparaten & Services -> Helpers.
+      selector:
+        entity:
+          domain: timer
 
     timer_duration:
       name: Timer Duur
