@@ -196,7 +196,7 @@ automation:
         then:
           - service: homeassistant.turn_off
             target: !input light_target
-      elif:
+        elif:
           - condition: template
             value_template: "{{ input_timer_action == 'dim' }}"
         then:
@@ -204,7 +204,7 @@ automation:
             target: !input light_target
             data:
               brightness_pct: 25
-      elif:
+        elif:
           - condition: template
             value_template: "{{ input_timer_action == 'scene' }}"
         then:
