@@ -18,10 +18,10 @@ blueprint:
         Selecteer een of meerdere sensoren, apparaten met bewegingssensoren,
         of gebieden met bewegingssensoren.
       selector:
-        target: # Veranderd van 'entity:' naar 'target:'
-          entity:
-            domain: binary_sensor
-            device_class: motion
+        entity: # Terug naar entity selector
+          domain: binary_sensor
+          device_class: motion
+          multiple: true  # BELANGRIJK: Sta meerdere selecties toe
 
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
