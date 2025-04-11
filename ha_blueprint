@@ -7,7 +7,6 @@ blueprint:
     Vereist een vooraf aangemaakte timer-helper.
   domain: automation
   # Verbetering #6: Voeg hier een URL toe naar je Gist, repository of forum post
-  source_url: https://github.com/UW_GEBRUIKERSNAAM/UW_REPO/blob/main/blueprints/motion_light_timer_explicit.yaml # VERVANG DIT!
 
   input:
     motion_sensor:
