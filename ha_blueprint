@@ -143,7 +143,7 @@ action:
     then:
       - service: scene.turn_on
         target: !input dag_scene
-    elif:
+  - elif:
       - condition: and
         conditions:
           - condition: time
@@ -154,7 +154,7 @@ action:
     then:
       - service: scene.turn_on
         target: !input nacht_scene
-    elif:
+  - elif:
       - condition: time
         after: !input dag_start_tijd
         condition: template
@@ -162,7 +162,7 @@ action:
     then:
       - service: scene.turn_on
         target: !input dag_scene
-    elif:
+  - elif:
       - condition: time
         before: !input nacht_start_tijd
         condition: template
@@ -170,7 +170,7 @@ action:
     then:
       - service: scene.turn_on
         target: !input nacht_scene
-    else:
+  - else:
       - service: homeassistant.turn_on
         target: !input light_target
   - service: timer.start
