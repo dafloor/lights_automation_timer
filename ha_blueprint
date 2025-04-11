@@ -112,7 +112,7 @@ action:
                     before: !input time_start_night
                 sequence: !input turn_on_action_day
               # Standaard actie ('Nacht')
-              default: !input turn_on_action_night
+                default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           # timer.start herstart de timer automatisch als deze al liep.
