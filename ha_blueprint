@@ -11,13 +11,17 @@ blueprint:
   source_url: https://raw.githubusercontent.com/dafloor/lights_automation_timer/refs/heads/main/ha_blueprint
 
   input:
-    motion_sensor:
-      name: Bewegingssensor
-      description: De binary_sensor die beweging detecteert.
+    motion_sensors: # Naam aangepast (meervoud)
+      name: Bewegingssensor(en) # Naam aangepast
+      description: >
+        De binary_sensor(s) die beweging detecteren.
+        Selecteer een of meerdere sensoren, apparaten met bewegingssensoren,
+        of gebieden met bewegingssensoren.
       selector:
-        entity:
-          domain: binary_sensor
-          device_class: motion
+        target: # Veranderd van 'entity:' naar 'target:'
+          entity:
+            domain: binary_sensor
+            device_class: motion
 
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
@@ -88,7 +92,7 @@ max_exceeded: warning
 
 trigger:
   - platform: state
-    entity_id: !input motion_sensor
+    entity_id: !input motion_sensors
     to: "on"
     id: motion_detected
 
