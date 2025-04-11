@@ -118,8 +118,8 @@ action:
           # Dit betekent dat we doorgaan als: (lampen zijn uit) OF (timer is NIET idle).
           - condition: template
             value_template: >
-              {% set lights_on_count = expand(light_target) | selectattr('state', 'eq', 'on') | list | count %}
-              {% set timer_is_idle = is_state(timer_entity, 'idle') %}
+              {% set lights_on_count = expand(!input light_target) | selectattr('state', 'eq', 'on') | list | count %}
+              {% set timer_is_idle = is_state(!input timer_entity, 'idle') %}
               {# Ga door als NIET (lichten aan ZIJN EN timer idle IS) #}
               {# Logisch equivalent aan: (lichten aan ZIJN NIET) OF (timer idle IS NIET) #}
               {{ not (lights_on_count > 0 and timer_is_idle) }}
