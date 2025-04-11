@@ -179,34 +179,36 @@ action:
       duration: "00:{{ '%02d' % vertraging | int }}:00"
 
 # Automation to turn off the lights after the timer expires
-- alias: !blueprint_name - Lampen Uit / Lights Off
-  description: >
-    Voert de geselecteerde actie uit wanneer de timer afloopt. /
-    Performs the selected action when the timer expires.
-  trigger:
-    - platform: event
-      event_type: timer.finished
-      event_data:
-        entity_id: !input timer_entity
-  action:
-    - if:
-        - condition: template
-          value_template: "{{ input_timer_action == 'turn_off' }}"
-      then:
-        - service: homeassistant.turn_off
-          target: !input light_target
-    elif:
-        - condition: template
-          value_template: "{{ input_timer_action == 'dim' }}"
-      then:
-        - service: light.turn_on
-          target: !input light_target
-          data:
-            brightness_pct: 25
-    elif:
-        - condition: template
-          value_template: "{{ input_timer_action == 'scene' }}"
-      then:
-        - service: scene.turn_on
-          target: !input timer_off_scene
-  mode: single
+# Automation to turn off the lights after the timer expires
+automation:
+  - alias: !blueprint_name - Lampen Uit / Lights Off
+    description: >
+      Voert de geselecteerde actie uit wanneer de timer afloopt. /
+      Performs the selected action when the timer expires.
+    trigger:
+      - platform: event
+        event_type: timer.finished
+        event_data:
+          entity_id: !input timer_entity
+    action:
+      - if:
+          - condition: template
+            value_template: "{{ input_timer_action == 'turn_off' }}"
+        then:
+          - service: homeassistant.turn_off
+            target: !input light_target
+      elif:
+          - condition: template
+            value_template: "{{ input_timer_action == 'dim' }}"
+        then:
+          - service: light.turn_on
+            target: !input light_target
+            data:
+              brightness_pct: 25
+      elif:
+          - condition: template
+            value_template: "{{ input_timer_action == 'scene' }}"
+        then:
+          - service: scene.turn_on
+            target: !input timer_off_scene
+    mode: single
