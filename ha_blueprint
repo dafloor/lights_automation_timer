@@ -1,6 +1,6 @@
 # Blueprint for motion-triggered lighting with timer and optional day/night modes
 blueprint:
-  name: Bewegingslicht met Timer (Geavanceerd)
+  name: Bewegingslicht met Timer
   description: >
     Schakelt verlichting in bij beweging en schakelt deze na een timer uit.
     Met optionele dag/nacht scènes, extra condities, ondersteuning voor meerdere bewegingssensoren,
@@ -179,9 +179,8 @@ action:
       duration: "00:{{ '%02d' % vertraging | int }}:00"
 
 # Automation to turn off the lights after the timer expires
-# Automation to turn off the lights after the timer expires
 automation:
-  - alias: !blueprint_name - Lampen Uit / Lights Off
+  - alias: Bewegingslicht met Timer - Lampen Uit / Lights Off
     description: >
       Voert de geselecteerde actie uit wanneer de timer afloopt. /
       Performs the selected action when the timer expires.
