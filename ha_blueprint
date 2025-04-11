@@ -105,17 +105,28 @@ trigger:
 condition: []
 
 action:
-  variables:
+  - variables:
+      var_light_target: !input light_target 
+      var_timer_entity: !input timer_entity
     # Bereken het aantal lichten dat aan is binnen het doelwit
-    lights_on_count: >
-      {{ expand(light_target) | selectattr('state', 'eq', 'on') | list | count }}
+      lights_on_count: >
+        {% set target_entities = [] %}
+        {% if var_light_target.entity_id is defined %}
+          {% set target_entities = var_light_target.entity_id | list %}
+        {% elif var_light_target.device_id is defined %}
+          {% set target_entities = device_entities(var_light_target.device_id) %}
+        {% elif var_light_target.area_id is defined %}
+          {% set target_entities = area_entities(var_light_target.area_id) %}
+        {% endif %}
+        {{ target_entities | expand | selectattr('state', 'eq', 'on') | list | count }}
+#        {{ expand(light_target) | selectattr('state', 'eq', 'on') | list | count }}
     # Controleer of de timer idle is
-    timer_is_idle: >
-      {{ is_state(timer_entity, 'idle') }}
+      timer_is_idle: >
+        {{ is_state(var_timer_entity, 'idle') }}
     # Bereken de voorwaarde om door te gaan (true = doorgaan, false = stoppen)
     # Ga door als NIET (lichten AAN ZIJN EN timer idle IS)
-    should_proceed: >
-      {{ not (lights_on_count > 0 and timer_is_idle) }}
+      should_proceed: >
+        {{ not (lights_on_count > 0 and timer_is_idle) }}
 
   - choose:
       # --- Acties voor Trigger 1: Beweging gedetecteerd ---
@@ -129,10 +140,9 @@ action:
             data:
               level: info # 'info' is meestal zichtbaar, 'debug' mogelijk niet zonder logger configuratie
               message: >
-                [Motion Light Check] Light Target: {{ light_target }},
-                LightsOnCount: {{ lights_on_count }}, Timer: {{ timer_entity }},
+                [Motion Light Check] Light Target: {{ var_light_target }},
+                LightsOnCount: {{ lights_on_count }}, Timer: {{ var_timer_entity }},
                 TimerIdle: {{ timer_is_idle }}, ShouldProceed: {{ should_proceed }}
-
           # # OPTIE B: Stuur een Persistente Notificatie (zichtbaar in zijbalk) - Handig voor snel testen
           - service: persistent_notification.create
             data:
@@ -141,13 +151,16 @@ action:
               title: "Motion Light Check - {{ now().strftime('%H:%M:%S') }}"
               message: >
                 LightsOn: {{ lights_on_count }}, TimerIdle: {{ timer_is_idle }}, Proceed: {{ should_proceed }}
-
-
           # Stap 1.2: Gebruik de berekende variabele in de conditie
           - condition: template
             # Gebruik hier de variabele die we hierboven hebben berekend
             value_template: "{{ should_proceed }}"
 
+          - service: system_log.write
+            data:
+              level: warning # Gebruik warning om zeker te zijn dat het zichtbaar is
+              message: >
+                DEBUG - Light Target: {{ light_target }}, Timer Entity: {{ timer_entity }} Light Target2: {{ var_light_target }}, Timer Entity2: {{ var_timer_entity }}  
 
           # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
@@ -173,4 +186,3 @@ action:
           # Stap 2.1: Schakel het doelwit uit
           - service: light.turn_off
             target: !input light_target # Werkt correct met enkele entity, groep of area
-
