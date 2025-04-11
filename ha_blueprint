@@ -105,6 +105,18 @@ trigger:
 condition: []
 
 action:
+  variables:
+    # Bereken het aantal lichten dat aan is binnen het doelwit
+    lights_on_count: >
+      {{ expand(light_target) | selectattr('state', 'eq', 'on') | list | count }}
+    # Controleer of de timer idle is
+    timer_is_idle: >
+      {{ is_state(timer_entity, 'idle') }}
+    # Bereken de voorwaarde om door te gaan (true = doorgaan, false = stoppen)
+    # Ga door als NIET (lichten AAN ZIJN EN timer idle IS)
+    should_proceed: >
+      {{ not (lights_on_count > 0 and timer_is_idle) }}
+
   - choose:
       # --- Acties voor Trigger 1: Beweging gedetecteerd ---
       - conditions:
@@ -112,19 +124,30 @@ action:
             id: motion_detected
         sequence:
           # Stap 1.0: AANGEPASTE CONDITIE - Check licht & timer status
-          # De automatisering (sequence) gaat verder TENZIJ aan BEIDE volgende voorwaarden is voldaan:
-          #  1. Minstens één lamp in 'light_target' is 'on'.
-          #  2. De timer ('timer_entity') heeft de status 'idle'.
-          # Dit betekent dat we doorgaan als: (lampen zijn uit) OF (timer is NIET idle).
+          # OPTIE A: Schrijf naar Home Assistant Log (zichtbaar in Instellingen -> Systeem -> Logboeken)
+          - service: system_log.write
+            data:
+              level: info # 'info' is meestal zichtbaar, 'debug' mogelijk niet zonder logger configuratie
+              message: >
+                [Motion Light Check] Light Target: {{ light_target }},
+                LightsOnCount: {{ lights_on_count }}, Timer: {{ timer_entity }},
+                TimerIdle: {{ timer_is_idle }}, ShouldProceed: {{ should_proceed }}
+
+          # # OPTIE B: Stuur een Persistente Notificatie (zichtbaar in zijbalk) - Handig voor snel testen
+          - service: persistent_notification.create
+            data:
+              # Gebruik een unieke ID om te voorkomen dat notificaties elkaar overschrijven
+              notification_id: "motion_light_debug_{{ range(1000) | random }}"
+              title: "Motion Light Check - {{ now().strftime('%H:%M:%S') }}"
+              message: >
+                LightsOn: {{ lights_on_count }}, TimerIdle: {{ timer_is_idle }}, Proceed: {{ should_proceed }}
+
+
+          # Stap 1.2: Gebruik de berekende variabele in de conditie
           - condition: template
-            value_template: >
-              {% set lights_on_count = expand(!input light_target) | selectattr('state', 'eq', 'on') | list | count %}
-              {% set timer_is_idle = is_state(!input timer_entity, 'idle') %}
-              {# Ga door als NIET (lichten aan ZIJN EN timer idle IS) #}
-              {# Logisch equivalent aan: (lichten aan ZIJN NIET) OF (timer idle IS NIET) #}
-              {{ not (lights_on_count > 0 and timer_is_idle) }}
-              {# Alternatieve, misschien duidelijkere logica die hetzelfde doet: #}
-              {# {{ lights_on_count == 0 or not timer_is_idle }} #}
+            # Gebruik hier de variabele die we hierboven hebben berekend
+            value_template: "{{ should_proceed }}"
+
 
           # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
