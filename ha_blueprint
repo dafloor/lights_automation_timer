@@ -152,30 +152,12 @@ action:
             
           # Stap 1.1: Bepaal dag/nacht en voer de 'aan' actie uit
           - choose:
-              - conditions:
-                  - condition: time
-                    after: !input time_start_day
-                    before: !input time_start_night
-                sequence:
-                  - condition: template
-                    value_template: >
-                      {% set threshold = float(light_level_threshold) %}
-                      {% set light_level_ok = false %}
-                      {% for sensor in trigger.entity_id %}
-                        {% if states[sensor].attributes.illuminance is defined and states[sensor].attributes.illuminance | float < threshold %}
-                          {% set light_level_ok = true %}
-                        {% elif states[sensor].attributes.light_level is defined and states[sensor].attributes.light_level | float < threshold %}
-                          {% set light_level_ok = true %}
-                        {% endif %}
-                      {% endfor %}
-                      {{ light_level_ok }}
-                  - service: scene.turn_on
-                    target:
-                      entity_id: !input turn_on_action_day
-              default:
-                - service: scene.turn_on
-                  target:
-                    entity_id: !input turn_on_action_night
+            - conditions:
+              - condition: time
+                after: !input time_start_day
+                before: !input time_start_night
+              sequence: !input turn_on_action_day
+            default: !input turn_on_action_night
 
           # Stap 1.2: Start (of herstart) de timer
           - service: timer.start
