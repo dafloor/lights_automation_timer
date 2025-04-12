@@ -5,11 +5,10 @@ blueprint:
     Schakelt het doelwit uit wanneer de timer afloopt.
     Opties voor dag/nacht, alleen aanzetten als uit, en alleen uitzetten als aan.
     Vereist een vooraf aangemaakte timer-helper.
-    **Translation-ready and improved documentation for better user experience.**
+    **Light level check applies only to day action and defaults to true if no lux attribute is found.**
   domain: automation
 
-  # URL to blueprint source for easier reference and sharing
-  source_url: https://raw.githubusercontent.com/dafloor/lights_automation_timer/refs/heads/main/ha_blueprint
+  source_url: https://github.com/dafloor/lights_automation_timer/edit/improve-ha_blueprint/ha_blueprint
 
   input:
     motion_sensors:
@@ -128,6 +127,7 @@ blueprint:
     - variables:
         var_light_target: !input light_target
         var_timer_entity: !input timer_entity
+        var_light_level_threshold: !input light_level_threshold
         lights_on_count: >
           {% set target_entities = [] %}
           {% if var_light_target.entity_id is defined %}
@@ -140,6 +140,14 @@ blueprint:
           {{ expand (target_entities) | selectattr('state', 'eq', 'on') | list | count }}
         timer_is_idle: >
           {{ is_state(var_timer_entity, 'idle') }}
+        light_level_low: >
+          {% set below_threshold = true %}
+          {% for sensor in states | selectattr('entity_id', 'in', trigger.entity_id | list) %}
+            {% if sensor.attributes.lux is defined and sensor.attributes.lux >= var_light_level_threshold %}
+              {% set below_threshold = false %}
+            {% endif %}
+          {% endfor %}
+          {{ below_threshold }}
         should_proceed: >
           {{ not (lights_on_count > 0 and timer_is_idle) }}
 
@@ -155,6 +163,8 @@ blueprint:
                     - condition: time
                       after: !input time_start_day
                       before: !input time_start_night
+                    - condition: template
+                      value_template: "{{ light_level_low }}" # Only for day action
                   sequence: !input turn_on_action_day
                 default: !input turn_on_action_night
             - service: timer.start
