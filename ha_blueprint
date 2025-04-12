@@ -166,7 +166,7 @@ blueprint:
                     - condition: template
                       value_template: "{{ light_level_low }}" # Only for day action
                   sequence: !input turn_on_action_day
-                default: !input turn_on_action_night
+              default: !input turn_on_action_night
             - service: timer.start
               target:
                 entity_id: !input timer_entity
