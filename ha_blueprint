@@ -1,64 +1,77 @@
 blueprint:
-  name: Bewegingsgestuurd Licht met Expliciete Timer (Dag/Nacht) v2
+  name: Bewegingsgestuurd Licht met Expliciete Timer (Dag/Nacht) v4
   description: >
-    IMPROVED VERSION: Schakelt licht(en)/scene(s) in bij beweging en start/herstart een timer.
+    VERBETERDE VERSIE: Schakelt licht(en)/scene(s) in bij beweging en start/herstart een timer.
     Schakelt het doelwit uit wanneer de timer afloopt.
-    Opties voor dag/nacht, alleen aanzetten als uit, en alleen uitzetten als aan.
+    Opties voor dag/nacht. Overdag wordt gecontroleerd of een opgegeven lichtsensor
+    onder een bepaalde waarde is voordat de automatisering doorgaat (alleen als
+    de automatisering nog niet actief is). 's Nachts is er geen lichtniveau controle.
     Vereist een vooraf aangemaakte timer-helper.
-    **Light level check applies only to day action and defaults to true if no lux attribute is found.**
   domain: automation
 
-  source_url: https://github.com/dafloor/lights_automation_timer/edit/improve-ha_blueprint/ha_blueprint
+  source_url: https://raw.githubusercontent.com/dafloor/lights_automation_timer/refs/heads/main/ha_blueprint
 
   input:
-    motion_sensors:
-      name: Bewegingssensor(en)
+    motion_sensors: # Naam aangepast (meervoud)
+      name: Bewegingssensor(en) # Naam aangepast
       description: >
         De binary_sensor(s) die beweging detecteren.
         Selecteer een of meerdere sensoren, apparaten met bewegingssensoren,
         of gebieden met bewegingssensoren.
       selector:
-        entity:
+        entity: # Terug naar entity selector
           domain: binary_sensor
           device_class: motion
-          multiple: true
+          multiple: true  # BELANGRIJK: Sta meerdere selecties toe
+
+    light_sensor:
+      name: Lichtsensor (Optioneel voor Dag)
+      description: >
+        De sensor die het lichtniveau meet. Indien opgegeven, wordt overdag
+        gecontroleerd of de waarde onder de ingestelde drempel is voordat
+        de lichten aangaan (alleen als de automatisering nog niet actief is).
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+
+    light_level_threshold_day:
+      name: Lichtniveau Drempel (Dag)
+      description: >
+        De maximale lichtniveau waarde (in de eenheid van de lichtsensor)
+        waaronder de lichten overdag mogen aangaan (alleen indien de
+        lichtsensor is opgegeven en de automatisering nog niet actief is).
+      selector:
+        number:
+          unit_of_measurement: "lx" # Pas dit aan indien nodig
+          min: 0
+          max: 1000 # Pas dit aan indien nodig
+      default: 100
 
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
       description: >
-        Actie die uitgevoerd moet worden bij beweging overdag 
-        (bv. activeer scene.overloop_helder). 
+        Actie die uitgevoerd moet worden bij beweging overdag (bv. activeer scene.overloop_helder).
         Voorbeeld: gebruik 'scene.turn_on' met een specifieke dag-scene.
       selector:
         action: {}
-      default:
-        - service: scene.turn_on
-          target:
-            entity_id: scene.default_day_scene
+      default: []
 
     turn_on_action_night:
       name: Actie bij inschakelen (Nacht)
       description: >
-        Actie die uitgevoerd moet worden bij beweging 's nachts 
-        (bv. activeer scene.overloop_nachtlampje). 
+        Actie die uitgevoerd moet worden bij beweging 's nachts (bv. activeer scene.overloop_nachtlampje).
         Voorbeeld: gebruik 'scene.turn_on' met een specifieke nacht-scene.
       selector:
         action: {}
-      default:
-        - service: scene.turn_on
-          target:
-            entity_id: scene.default_night_scene
+      default: []
 
     light_target:
       name: Uit te schakelen doelwit(ten)
       description: >
         De lamp(en), groep(en) of gebied(en) die uitgeschakeld moeten worden na de timer.
-        BELANGRIJK: Als je de opties 'Alleen aanzetten indien uitgeschakeld?' of
-        'Alleen uitschakelen indien ingeschakeld?' gebruikt, werken deze het
-        meest betrouwbaar als dit een *enkele* entiteit is waarvan de status ('on'/'off')
-        de algehele status goed weergeeft.
       selector:
-        target:
+        target: # Gebruikt nu target selector
           entity:
             domain: light
 
@@ -94,92 +107,121 @@ blueprint:
         text: {}
       default: "00:05:00"
 
-    light_level_threshold:
-      name: Lichtniveau Drempel
-      description: >
-        Schakel het licht overdag alleen in als het lichtniveau van de bewegingssensor onder deze waarde is.
-        Stel in op een hoge waarde (bijv. 1000) om deze controle uit te schakelen.
-      default: 100
-      selector:
-        number:
-          min: 0
-          max: 1000
-          step: 1
+mode: queued
+max_exceeded: warning
 
-  mode: queued
-  max_exceeded: warning
+trigger:
+  - platform: state
+    entity_id: !input motion_sensors
+    to: "on"
+    id: motion_detected
 
-  trigger:
-    - platform: state
-      entity_id: !input motion_sensors
-      to: "on"
-      id: motion_detected
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input timer_entity
+    id: timer_finished
 
-    - platform: event
-      event_type: timer.finished
-      event_data:
-        entity_id: !input timer_entity
-      id: timer_finished
+condition: []
 
-  condition: []
+action:
+  - variables:
+      var_light_target: !input light_target
+      var_timer_entity: !input timer_entity
+      var_light_sensor: !input light_sensor
+#      var_start_day: !input time_start_day
+#      var_start_night: input time_start_night
+      var_light_level_threshold_day: !input light_level_threshold_day
+#      var_time_start_day: {{ var_start_day.attributes.time | default('00:00:00') }}
+#      var_time_start_night: {{ var_start_night.attributes.time | default('00:00:00') }}
+      current_time: "{{ now().strftime('%H:%M:%S') }}"
+      # Bereken het aantal lichten dat aan is binnen het doelwit op basis van
+      # wat er in light_target (area, device of entity) is aangegeven.
+      lights_on_count: >
+        {% set target_entities = [] %}
+        {% if var_light_target.entity_id is defined %}
+          {% set target_entities = var_light_target.entity_id %}
+        {% elif var_light_target.device_id is defined %}
+          {% set target_entities = device_entities(var_light_target.device_id) %}
+        {% elif var_light_target.area_id is defined %}
+          {% set target_entities = area_entities(var_light_target.area_id) %}
+        {% endif %}
+        {{ expand (target_entities) | selectattr('state', 'eq', 'on') | list | count }}
+      # Controleer of de timer idle is
+      timer_is_idle: >
+        {{ is_state(var_timer_entity, 'idle') }}
+      # Controleer of de lichtsensor is opgegeven en de waarde onder de drempel is
+      light_level_ok_day: >
+        {% if var_light_sensor %}
+          {{ states(var_light_sensor) | float(0) < var_light_level_threshold_day | default(false) }}
+        {% else %}
+          true
+        {% endif %}
+      # Bepaal of het dag is op basis van de input_datetime helpers
+#      is_daytime: >
+#        {{ current_time >= var_time_start_day and current_time <= var_time_start_night }}
 
-  action:
-    - variables:
-        var_light_target: !input light_target
-        var_timer_entity: !input timer_entity
-        var_light_level_threshold: !input light_level_threshold
-        lights_on_count: >
-          {% set target_entities = [] %}
-          {% if var_light_target.entity_id is defined %}
-            {% set target_entities = var_light_target.entity_id | list %}
-          {% elif var_light_target.device_id is defined %}
-            {% set target_entities = device_entities(var_light_target.device_id) %}
-          {% elif var_light_target.area_id is defined %}
-            {% set target_entities = area_entities(var_light_target.area_id) %}
-          {% endif %}
-          {{ expand (target_entities) | selectattr('state', 'eq', 'on') | list | count }}
-        timer_is_idle: >
-          {{ is_state(var_timer_entity, 'idle') }}
-        light_level_low: >
-          {% set below_threshold = true %}
-          {% for sensor in states | selectattr('entity_id', 'in', trigger.entity_id | list) %}
-            {% if sensor.attributes.lux is defined and sensor.attributes.lux >= var_light_level_threshold %}
-              {% set below_threshold = false %}
-            {% endif %}
-          {% endfor %}
-          {{ below_threshold }}
-        should_proceed: >
-          {{ not (lights_on_count > 0 and timer_is_idle) }}
+  - choose:
+      # --- Acties voor Trigger 1: Beweging gedetecteerd ---
+      - conditions:
+          - condition: trigger
+            id: motion_detected
+        sequence:
+          # Stap 1.0: AANGEPASTE CONDITIE - Check licht & timer status
+          - condition: template
+            value_template: >
+              {{ not (lights_on_count > 0 and timer_is_idle) }}
+          # Stap 1.1: Extra conditie voor dag: controleer lichtniveau (alleen indien niet actief)
+          - condition: and
+            conditions:
+#              - condition: template
+#                value_template: "{{ is_daytime }}"
+              - condition: time
+                after: !input time_start_day
+                before: !input time_start_night
+              - condition: template
+                value_template: "{{ lights_on_count == 0 }}" # Controleer alleen als lichten uit zijn
+              - condition: template
+                value_template: "{{ light_level_ok_day }}"
+          - condition: or
+            conditions:
+              # Dag en (lichtniveau OK of geen lichtsensor opgegeven)
+              - condition: and
+                conditions:
+#                  - condition: template
+#                    value_template: "{{ is_daytime }}"`
+                  - condition: time
+                    after: !input time_start_day
+                    before: !input time_start_night
+                  - condition: template
+                    value_template: "{{ lights_on_count == 0 }}"
+                  - condition: template
+                    value_template: "{{ light_level_ok_day }}"
+              # Nacht (altijd doorgaan)
+              - condition: time
+                after: !input time_start_night
+                before: !input time_start_day
+          # Stap 1.2: Bepaal dag/nacht en voer de 'aan' actie uit
+          - choose:
+              - conditions:
+                  - condition: time
+                    after: !input time_start_day
+                    before: !input time_start_night
+                sequence: !input turn_on_action_day
+            default: !input turn_on_action_night
 
-    - choose:
-        - conditions:
-            - condition: trigger
-              id: motion_detected
-          sequence:
-            - condition: template
-              value_template: "{{ should_proceed }}"
-            - choose:
-                - conditions:
-                    - condition: time
-                      after: !input time_start_day
-                      before: !input time_start_night
-                    - condition: template
-                      value_template: "{{ light_level_low }}" # Only for day action
-                  sequence: !input turn_on_action_day
-              default: !input turn_on_action_night
-            - service: timer.start
-              target:
-                entity_id: !input timer_entity
-              data:
-                duration: !input timer_duration
+          # Stap 1.3: Start (of herstart) de timer
+          - service: timer.start
+            target:
+              entity_id: !input timer_entity
+            data:
+              duration: !input timer_duration
 
-        - conditions:
-            - condition: trigger
-              id: timer_finished
-          sequence:
-            - service: light.turn_off
-              target: !input light_target
-            - service: notify.notify
-              data:
-                message: >
-                  Timer voltooid! Het licht is uitgeschakeld.
+      # --- Acties voor Trigger 2: Timer is afgelopen ---
+      - conditions:
+          - condition: trigger
+            id: timer_finished
+        sequence:
+          # Stap 2.1: Schakel het doelwit uit
+          - service: light.turn_off
+            target: !input light_target # Werkt correct met enkele entity, groep of area
