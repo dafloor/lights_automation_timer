@@ -8,7 +8,7 @@ blueprint:
     de automatisering nog niet actief is). 's Nachts is er geen lichtniveau controle.
     Vereist een vooraf aangemaakte timer-helper.
   domain: automation
-# Verbetering #6: Voeg hier een URL toe naar je Gist, repository of forum post
+
   source_url: https://raw.githubusercontent.com/dafloor/lights_automation_timer/refs/heads/main/ha_blueprint
 
   input:
@@ -45,8 +45,8 @@ blueprint:
         number:
           unit_of_measurement: "lx" # Pas dit aan indien nodig
           min: 0
-          max: 1000 # Pas dit aan indien nodig
-      default: 100
+          max: 100 # Pas dit aan indien nodig
+      default: 10
 
     turn_on_action_day:
       name: Actie bij inschakelen (Dag)
@@ -129,12 +129,7 @@ action:
       var_light_target: !input light_target
       var_timer_entity: !input timer_entity
       var_light_sensor: !input light_sensor
-#      var_start_day: !input time_start_day
-#      var_start_night: input time_start_night
       var_light_level_threshold_day: !input light_level_threshold_day
-#      var_time_start_day: {{ var_start_day.attributes.time | default('00:00:00') }}
-#      var_time_start_night: {{ var_start_night.attributes.time | default('00:00:00') }}
-      current_time: "{{ now().strftime('%H:%M:%S') }}"
       # Bereken het aantal lichten dat aan is binnen het doelwit op basis van
       # wat er in light_target (area, device of entity) is aangegeven.
       lights_on_count: >
@@ -157,9 +152,6 @@ action:
         {% else %}
           true
         {% endif %}
-      # Bepaal of het dag is op basis van de input_datetime helpers
-#      is_daytime: >
-#        {{ current_time >= var_time_start_day and current_time <= var_time_start_night }}
 
   - choose:
       # --- Acties voor Trigger 1: Beweging gedetecteerd ---
@@ -171,52 +163,51 @@ action:
           - condition: template
             value_template: >
               {{ not (lights_on_count > 0 and timer_is_idle) }}
-          # Stap 1.1: Extra conditie voor dag: controleer lichtniveau (alleen indien niet actief)
-          - condition: and
-            conditions:
-#              - condition: template
-#                value_template: "{{ is_daytime }}"
-              - condition: time
-                after: !input time_start_day
-                before: !input time_start_night
+          - if: 
               - condition: template
-                value_template: "{{ lights_on_count == 0 }}" # Controleer alleen als lichten uit zijn
-              - condition: template
-                value_template: "{{ light_level_ok_day }}"
-          - condition: or
-            conditions:
-              # Dag en (lichtniveau OK of geen lichtsensor opgegeven)
-              - condition: and
-                conditions:
-#                  - condition: template
-#                    value_template: "{{ is_daytime }}"`
-                  - condition: time
-                    after: !input time_start_day
-                    before: !input time_start_night
-                  - condition: template
-                    value_template: "{{ lights_on_count == 0 }}"
-                  - condition: template
-                    value_template: "{{ light_level_ok_day }}"
-              # Nacht (altijd doorgaan)
-              - condition: time
-                after: !input time_start_night
-                before: !input time_start_day
-          # Stap 1.2: Bepaal dag/nacht en voer de 'aan' actie uit
-          - choose:
-              - conditions:
-                  - condition: time
-                    after: !input time_start_day
-                    before: !input time_start_night
-                sequence: !input turn_on_action_day
-            default: !input turn_on_action_night
-
+                value_template: "{{ not timer_is_idle }}"
+            then:
           # Stap 1.3: Start (of herstart) de timer
-          - service: timer.start
-            target:
-              entity_id: !input timer_entity
-            data:
-              duration: !input timer_duration
-
+              - service: timer.start
+                target:
+                  entity_id: !input timer_entity
+                data:
+                  duration: !input timer_duration
+            else:
+              - if:
+                  - condition: or
+                    conditions:
+                  # Stap 1.1: Extra conditie voor dag: controleer lichtniveau (alleen indien niet actief)
+                    - condition: and
+                      conditions:
+                        - condition: time
+                          after: !input time_start_day
+                          before: !input time_start_night
+                        - condition: template
+                          value_template: "{{ lights_on_count == 0 }}" # Controleer alleen als lichten uit zijn
+                        - condition: template
+                          value_template: "{{ light_level_ok_day }}"
+                then:
+                  - sequence: !input turn_on_action_day
+                    # Stap 1.3: Start (of herstart) de timer
+                  - service: timer.start
+                    target:
+                      entity_id: !input timer_entity
+                    data:
+                      duration: !input timer_duration
+                else:
+                  - if: 
+                  # Nacht (altijd doorgaan)
+                      - condition: time
+                        after: !input time_start_night
+                        before: !input time_start_day
+                    then:
+                      - sequence: !input turn_on_action_night
+                      - service: timer.start
+                        target:
+                          entity_id: !input timer_entity
+                        data:
+                          duration: !input timer_duration
       # --- Acties voor Trigger 2: Timer is afgelopen ---
       - conditions:
           - condition: trigger
