@@ -216,4 +216,3 @@ action:
           # Stap 2.1: Schakel het doelwit uit
           - service: light.turn_off
             target: !input light_target # Werkt correct met enkele entity, groep of area
-
